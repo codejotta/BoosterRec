@@ -1,8 +1,8 @@
 import sys
 from PySide2.QtWidgets import (QApplication, QMessageBox, QWidget, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QGridLayout, QFileDialog, QGroupBox, 
-								QSystemTrayIcon, QMenu, QCheckBox, QAction, QShortcut, QPlainTextEdit)
+								QSystemTrayIcon, QMenu, QCheckBox, QAction, QShortcut, QRubberBand, QDialog)
 from PySide2.QtGui import QIcon, QPixmap, QImage, QKeySequence, QCursor
-from PySide2.QtCore import Qt, QCoreApplication, QThread, QTimer, QObject, SIGNAL, QRect
+from PySide2.QtCore import Qt, QCoreApplication, QThread, QTimer, QObject, SIGNAL, QRect, QSize
 from pynput import keyboard
 from _thread import start_new_thread
 
@@ -26,7 +26,7 @@ class Window(QWidget):
 
 		boxImage = QGroupBox("Captura da tela")
 		boxLayout = QVBoxLayout()
-		self.screenFrame = QLabel("Tela não capturada (Uma miniatura aparecerá aqui).", boxImage)
+		self.screenFrame = QLabel("Tela não capturada.", boxImage)
 		boxLayout.addWidget(self.screenFrame)
 		boxImage.setLayout(boxLayout)
 
@@ -110,38 +110,38 @@ class Window(QWidget):
 			self.setVisible(False)
 			QThread.msleep(210)
 		self.image = QApplication.primaryScreen().grabWindow(0)
+		self.setVisible(True)
 
 		if self.area_total.isChecked() == True:
 			width = 400
 			height = width
 			self.screenFrame.setPixmap(self.image.scaled(width,height,Qt.KeepAspectRatio, Qt.SmoothTransformation))
-			self.setVisible(True)
 		elif self.specific_area.isChecked() == True:
-			#self.setWindowFlags(Qt.Widget | Qt.FramelessWindowHint)
-			#self.setAttribute(Qt.WA_NoSystemBackground, True)
-			#self.setAttribute(Qt.WA_TranslucentBackground, True) #fundo trasparente e aberto
-			self.setVisible(True)
+			a = self.image
+			FullScreenImage(a)
 
-			values = fullsimg.img.setPixmap(self.image.scaled(1366,768,Qt.KeepAspectRatio, Qt.SmoothTransformation))
-			self.image = self.image.copy(*values)
-
-class FullScreenImage(QWidget):
-	def __init__(self):
-		super(FullScreenImage, self).__init__()
-		#frame = QApplication.primaryScreen().grabWindow(0)
-		img = QLabel(self)
-		#img.setPixmap(frame.scaled(1366,768,Qt.KeepAspectRatio, Qt.SmoothTransformation))
-		self.showFullScreen()
-	def keyPressEvent(self, event):
-		if event.key() == Qt.Key_P:
-			sys.exit()
+class FullScreenImage(QDialog):
+	def __init__(self, image, parent=None):
+		super(FullScreenImage, self).__init__(parent)
+		self.image = image
+		self.img = QLabel(self)
+		self.img.setPixmap(self.image.scaled(self.image.size().width(),self.image.size().height(),Qt.KeepAspectRatio,Qt.SmoothTransformation))
+		self.setWindowState(Qt.WindowFullScreen)
+		self.exec_()
 	def mousePressEvent(self, event):
-		x1 = event.pos().x()
-		y1 = event.pos().y()
-		print(x, y)
+		self.originQPoint = event.pos()
+		self.currentQRubberBand = QRubberBand(QRubberBand.Rectangle, self)
+		self.currentQRubberBand.setGeometry(QRect(self.originQPoint, QSize()))
+		self.currentQRubberBand.show()
+	def mouseMoveEvent(self, event):
+		self.currentQRubberBand.setGeometry(QRect(self.originQPoint, event.pos()).normalized())
 	def mouseReleaseEvent(self, event):
-		x2 = event.pos().x()
-		y2 = event.pos().y()
+		self.currentQRubberBand.hide()
+		currentQRect = self.currentQRubberBand.geometry()
+		self.currentQRubberBand.deleteLater()
+		image_final = self.image.copy(currentQRect)
+		win.screenFrame.setPixmap(image_final.scaled(400,400,Qt.KeepAspectRatio,Qt.SmoothTransformation))
+		self.hide()
 
 class SystemTrayIcon(QSystemTrayIcon):
 	def __init__(self, icon, parent=None):
@@ -170,5 +170,4 @@ if __name__ == "__main__":
 	app = QApplication(sys.argv)
 	trayIcon = SystemTrayIcon(QIcon("icon.png"))
 	win = Window()
-	fullsimg = FullScreenImage()
 	sys.exit(app.exec_())
