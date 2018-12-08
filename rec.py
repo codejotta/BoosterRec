@@ -1,8 +1,8 @@
 import sys
 from PySide2.QtWidgets import (QApplication, QMessageBox, QWidget, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QGridLayout, QFileDialog, QGroupBox, 
-								QSystemTrayIcon, QMenu, QCheckBox, QAction, QShortcut)
-from PySide2.QtGui import QIcon, QPixmap, QImage, QKeySequence
-from PySide2.QtCore import Qt, QCoreApplication, QThread, QTimer, QObject, SIGNAL
+								QSystemTrayIcon, QMenu, QCheckBox, QAction, QShortcut, QPlainTextEdit)
+from PySide2.QtGui import QIcon, QPixmap, QImage, QKeySequence, QCursor
+from PySide2.QtCore import Qt, QCoreApplication, QThread, QTimer, QObject, SIGNAL, QRect
 from pynput import keyboard
 from _thread import start_new_thread
 
@@ -24,33 +24,34 @@ class Window(QWidget):
 		folderLayout.addWidget(self.folderEntry)
 		folderLayout.addWidget(folderButton)
 
-		boxImage = QGroupBox("Última captura da tela")
+		boxImage = QGroupBox("Captura da tela")
 		boxLayout = QVBoxLayout()
 		self.screenFrame = QLabel("Tela não capturada (Uma miniatura aparecerá aqui).", boxImage)
 		boxLayout.addWidget(self.screenFrame)
 		boxImage.setLayout(boxLayout)
 
 		optionsGroup = QGroupBox("Opções")
-		lb_sc = QLabel("Tecla de atalho:")
-		lb_sc.setFixedWidth(80)
-		self.sc_key = QLineEdit("CTRL_L+M")
-		self.sc_key.setFixedWidth(50)
-		ol2 = QHBoxLayout()
-		ol2.addWidget(lb_sc)
-		ol2.addWidget(self.sc_key)
-		ol2.setAlignment(Qt.AlignTop)
-		self.hidden_window = QCheckBox("Não capturar esta janela")
+		self.area_total = QCheckBox("Capturar a tela inteira (1368x766)", checked=1)
+		self.area_total.clicked.connect(self.total_area_function)
+		self.specific_area = QCheckBox("Capturar área específica", checked=0)
+		self.specific_area.clicked.connect(self.specific_area_function)
+		self.no_capture_window = QCheckBox("Não capturar esta janela")
 		optionsLayout = QVBoxLayout()
-		optionsLayout.addLayout(ol2)
-		optionsLayout.addWidget(self.hidden_window)
+		optionsLayout.addWidget(self.area_total)
+		optionsLayout.addWidget(self.specific_area)
+		optionsLayout.addWidget(self.no_capture_window)
 		optionsGroup.setLayout(optionsLayout)
 
 		captureButton = QPushButton("Capturar tela", self)
+		captureButton.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_C))
 		captureButton.setFixedWidth(85)
 		captureButton.clicked.connect(self.capture)
-		optionsButton = QPushButton("Opções", self)
+		optionsButton = QPushButton("Ocultar", self)
+		optionsButton.setShortcut(QKeySequence(Qt.Key_Escape))
 		optionsButton.setFixedWidth(85)
+		optionsButton.clicked.connect(self.hidden_window_main)
 		saveButton = QPushButton("Salvar Imagem", self)
+		saveButton.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_S))
 		saveButton.setFixedWidth(85)
 		saveButton.clicked.connect(self.save_image)
 		bottomLayout = QGridLayout()
@@ -73,10 +74,21 @@ class Window(QWidget):
 		self.setWindowTitle('Booster Rec')
 		self.setWindowIcon(QIcon('icon.png'))
 
+	def specific_area_function(self):
+		if self.specific_area.isChecked() == True:
+			self.area_total.setChecked(False)
+
+	def total_area_function(self):
+		if self.area_total.isChecked() == True:
+			self.specific_area.setChecked(False)
+
 	def open_folder(self):
 		folder = QFileDialog.getSaveFileName(self, 'Selecionar pasta', '', "PNG (*.png);;JPEG (*.jpg);; Todos arquivos (*.*)")
 		if folder[0] != "":
 			self.folderEntry.setText(folder[0])
+
+	def hidden_window_main(self):
+		self.setVisible(False)
 
 	def save_image(self):
 		folder = self.folderEntry.text()
@@ -88,47 +100,69 @@ class Window(QWidget):
 		msg_info.setStandardButtons(QMessageBox.Ok)
 		self.layout.addWidget(msg_info)
 
-	def capture(self):
-		if self.hidden_window.isChecked() == True:
-			self.setVisible(False)
-			QThread.msleep(210)
-		self.image = QApplication.primaryScreen().grabWindow(0)
-		width = 400
-		height = width
-		self.screenFrame.setPixmap(self.image.scaled(width,height,Qt.KeepAspectRatio, Qt.SmoothTransformation))
-		self.setVisible(True)
-
 	def closeEvent(self, event):
 		self.hide()
 		event.ignore()
 		trayIcon.setVisible(True)
 
+	def capture(self):
+		if self.no_capture_window.isChecked() == True:
+			self.setVisible(False)
+			QThread.msleep(210)
+		self.image = QApplication.primaryScreen().grabWindow(0)
+
+		if self.area_total.isChecked() == True:
+			width = 400
+			height = width
+			self.screenFrame.setPixmap(self.image.scaled(width,height,Qt.KeepAspectRatio, Qt.SmoothTransformation))
+			self.setVisible(True)
+		elif self.specific_area.isChecked() == True:
+			#self.setWindowFlags(Qt.Widget | Qt.FramelessWindowHint)
+			#self.setAttribute(Qt.WA_NoSystemBackground, True)
+			#self.setAttribute(Qt.WA_TranslucentBackground, True) #fundo trasparente e aberto
+			self.setVisible(True)
+
+			values = fullsimg.img.setPixmap(self.image.scaled(1366,768,Qt.KeepAspectRatio, Qt.SmoothTransformation))
+			self.image = self.image.copy(*values)
+
+class FullScreenImage(QWidget):
+	def __init__(self):
+		super(FullScreenImage, self).__init__()
+		#frame = QApplication.primaryScreen().grabWindow(0)
+		img = QLabel(self)
+		#img.setPixmap(frame.scaled(1366,768,Qt.KeepAspectRatio, Qt.SmoothTransformation))
+		self.showFullScreen()
+	def keyPressEvent(self, event):
+		if event.key() == Qt.Key_P:
+			sys.exit()
+	def mousePressEvent(self, event):
+		x1 = event.pos().x()
+		y1 = event.pos().y()
+		print(x, y)
+	def mouseReleaseEvent(self, event):
+		x2 = event.pos().x()
+		y2 = event.pos().y()
+
 class SystemTrayIcon(QSystemTrayIcon):
 	def __init__(self, icon, parent=None):
 		QSystemTrayIcon.__init__(self, icon, parent)
 		menu = QMenu(parent)
-
 		initAction = QAction(QIcon("icon.png"), "&Mostrar/Esconder", self)
 		initAction.triggered.connect(self.initUI)
-
 		printScreen = QAction(QIcon("icon.png"), "&Capturar tela", self)
 		printScreen.triggered.connect(self.capture)
-
 		exitAction = QAction(QIcon("icon.png"), "&Exit", self)
 		exitAction.triggered.connect(QCoreApplication.exit)
-
 		menu.addAction(initAction)
 		menu.addAction(printScreen)
 		menu.addAction(exitAction)
 		self.setContextMenu(menu)
 		self.show()
-
 	def initUI(self):
 		if win.isVisible() == False:
 			win.setVisible(True)
 		else:
 			win.setVisible(False)
-
 	def capture(self):
 		win.capture()
 
@@ -136,4 +170,5 @@ if __name__ == "__main__":
 	app = QApplication(sys.argv)
 	trayIcon = SystemTrayIcon(QIcon("icon.png"))
 	win = Window()
+	fullsimg = FullScreenImage()
 	sys.exit(app.exec_())
