@@ -4,6 +4,7 @@ from tkinter import filedialog
 import datetime
 import PIL.ImageGrab
 from PIL import ImageTk
+import time
 
 class Window:
 	def __init__(self):
@@ -15,12 +16,14 @@ class Window:
 
 		self.lb_image = Label(self.window, image=None)
 		self.lb_image.pack(side="bottom")
+		self.capture()
 
 		save_lb = Label(self.window, text="Salvar imagem:", bg="#f2f3ed")
 		save_lb.pack(side="top", anchor="nw", padx=4)
 
 		self.save_en = Entry(self.window, relief="ridge", bd=1, bg="#fff")
 		self.save_en.pack(side=LEFT, ipady=3, padx=5, ipadx=100, pady=5)
+		self.save_en.insert(0, str(datetime.datetime.now())[:10]+".png")
 
 		save_bt = Button(self.window, text="Salvar", relief="ridge", bd=1, bg="#f2f3ed", command=self.open_dir)
 		save_bt.pack(side="left", padx=5)
@@ -52,6 +55,8 @@ class Window:
 				self.image.save(folder_selected)
 
 	def capture(self):
+		#self.window.withdraw()
+		time.sleep(0.3)
 		self.image = PIL.ImageGrab.grab()
 		proportion = self.image.size[0] - self.image.size[1]
 		perc = (proportion*100)/self.image.size[0]
@@ -60,6 +65,7 @@ class Window:
 		self.im = self.image.resize((x,y), PIL.Image.ANTIALIAS)
 		self.im = PIL.ImageTk.PhotoImage(image=self.im)
 		self.lb_image.configure(image=self.im)
+		#self.window.deiconify()
 
 
 krelease = [None]
