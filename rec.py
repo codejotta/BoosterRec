@@ -1,83 +1,84 @@
-from pynput import keyboard
-from tkinter import *
-from tkinter import filedialog
-import datetime
+import sys, time
+from PySide2.QtWidgets import QApplication, QMessageBox, QWidget, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout
+from PySide2.QtGui import QIcon, QPixmap, QImage
+from PySide2.QtCore import Qt
 import PIL.ImageGrab
-from PIL import ImageTk
-import time
+from PIL.ImageQt import ImageQt
 
-class Window:
+#window = QWidget()
+#window.resize(250, 150)
+#window.setWindowTitle('Booster Rec')
+#window.show()
+
+class Window(QWidget):
 	def __init__(self):
-		self.image = None
-		self.window = Tk()
+		super(Window, self).__init__()
+		self.initUI()
 
-		capturar = Button(self.window, text="Capturar tela", relief="ridge", bd=1, bg="#f2f3ed", command=self.capture)
-		capturar.pack(side="bottom", pady=5)
+	def initUI(self):
+		folderLabel = QLabel("Pasta:")
+		folderLabel.setFixedWidth(30)
+		folderEntry = QLineEdit("C:\\", self)
+		folderEntry.setFixedWidth(300)
+		folderButton = QPushButton("Procurar...", self)
+		folderButton.setFixedWidth(75)
+		folderButton.clicked.connect(self.open_folder)
+		folderLayout = QHBoxLayout()
+		folderLayout.addWidget(folderLabel)
+		folderLayout.addWidget(folderEntry)
+		folderLayout.addWidget(folderButton)
 
-		self.lb_image = Label(self.window, image=None)
-		self.lb_image.pack(side="bottom")
+		self.screenFrame = QLabel(self)
 		self.capture()
 
-		save_lb = Label(self.window, text="Salvar imagem:", bg="#f2f3ed")
-		save_lb.pack(side="top", anchor="nw", padx=4)
+		captureButton = QPushButton("Capturar tela", self)
+		captureButton.setFixedWidth(100)
+		captureButton.clicked.connect(self.capture)
+		saveButton = QPushButton("Salvar Imagem", self)
+		saveButton.setFixedWidth(100)
+		saveButton.clicked.connect(self.save_image)
+		bottomLayout = QHBoxLayout()
+		bottomLayout.addWidget(captureButton)
+		bottomLayout.addWidget(saveButton)
+		bottomLayout.setSpacing(218)
+		bottomLayout.setAlignment(Qt.AlignCenter)
 
-		self.save_en = Entry(self.window, relief="ridge", bd=1, bg="#fff")
-		self.save_en.pack(side=LEFT, ipady=3, padx=5, ipadx=100, pady=5)
-		self.save_en.insert(0, str(datetime.datetime.now())[:10]+".png")
+		self.layout = QVBoxLayout()
+		self.layout.addLayout(folderLayout)
+		self.layout.addWidget(self.screenFrame)
+		self.layout.addLayout(bottomLayout)
+		self.layout.setAlignment(Qt.AlignLeft)
+		self.layout.setAlignment(Qt.AlignTop)
+		self.setLayout(self.layout)
 
-		save_bt = Button(self.window, text="Salvar", relief="ridge", bd=1, bg="#f2f3ed", command=self.open_dir)
-		save_bt.pack(side="left", padx=5)
+		self.setWindowTitle('Booster Rec')
+		self.setWindowIcon(QIcon('icon.png'))
+		self.show()
 
-		self.window.configure(padx=5, pady=8, bg="#f2f3ed")
-		self.window.title("Screenshot")
-		self.window.mainloop()
+	def open_folder(self):
+		pass
 
-	def open_dir(self):
-		options = {}
-		options['defaultextension'] = ".png"
-		options['filetypes'] = [('PNG (*.png)', '.png'),('All Files (*.*)', '.*')]
-		options['initialfile'] = str(datetime.datetime.now())[:10]
-		options['title'] = "Salvar screenshot - Escolher Diretorio"
-
-		if self.save_en.get() != "":
-			folder = self.save_en.get()
-			try:
-				self.image.save(folder)
-			except ValueError:
-				folder = folder + ".png"
-				self.image.save(folder)
-				self.save_en.delete(0,"end")
-				self.save_en.insert(0, folder)
-		else:
-			folder_selected = filedialog.asksaveasfilename(**options)
-			if folder_selected != "":
-				self.save_en.insert("end", folder_selected)
-				self.image.save(folder_selected)
+	def save_image(self):
+		msg_info = QMessageBox(self)
+		msg_info.setIcon(QMessageBox.Information)
+		msg_info.setWindowTitle("Info")
+		msg_info.setText("Imagem salva!")
+		msg_info.setStandardButtons(QMessageBox.Ok)
+		self.layout.addWidget(msg_info)
 
 	def capture(self):
-		#self.window.withdraw()
-		time.sleep(0.3)
 		self.image = PIL.ImageGrab.grab()
+		self.image.save("oi.png")
 		proportion = self.image.size[0] - self.image.size[1]
 		perc = (proportion*100)/self.image.size[0]
-		x = 370
+		x = 415
 		y = int(x-((x/100)*perc))
-		self.im = self.image.resize((x,y), PIL.Image.ANTIALIAS)
-		self.im = PIL.ImageTk.PhotoImage(image=self.im)
-		self.lb_image.configure(image=self.im)
-		#self.window.deiconify()
-
-
-krelease = [None]
-
-def on_release(key):
-	global krelease
-	key = str(key)
-	key = key.strip("\'")
-	krelease.append(key)
-	if (krelease[-1] == "Key.ctrl_l" and krelease[-2] == "m") or (krelease[-1] == "m" and krelease[-2] == "Key.ctrl_l"): # CTRL + M
-		Window() # CTRL + M
+		img = self.image.resize((x,y), PIL.Image.ANTIALIAS)
+		img = ImageQt(img)
+		img = QPixmap.fromImage(img)
+		self.screenFrame.setPixmap(img)
 
 if __name__ == "__main__":
-	with keyboard.Listener(on_release=on_release) as listener:
-		listener.join()
+	app = QApplication(sys.argv)
+	wi = Window()
+	sys.exit(app.exec_())
