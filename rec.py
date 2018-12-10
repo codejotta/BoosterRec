@@ -120,7 +120,7 @@ class Window(QWidget):
 			self.screenFrame.setPixmap(self.image.scaled(width,height,Qt.KeepAspectRatio, Qt.SmoothTransformation))
 		elif self.specific_area.isChecked() == True:
 			img = self.image
-			a = FullScreenImage(img)
+			FullScreenImage(img)
 
 
 class FullScreenImage(QDialog):
@@ -132,12 +132,13 @@ class FullScreenImage(QDialog):
 		self.img.setPixmap(self.image)
 
 		colorRubber = QPalette()
-		colorRubber.setBrush(QPalette.Highlight, Qt.gray)
+		colorRubber.setBrush(QPalette.Highlight, Qt.transparent)
 		transparent = QRubberBand(QRubberBand.Rectangle, self)
 		transparent.setGeometry(QRect(QPoint(0,0), QSize(self.image.size().width(),self.image.size().height())))
 		transparent.setPalette(colorRubber)
 		transparent.show()
 
+		self.setCursor(Qt.CrossCursor)
 		self.setWindowState(Qt.WindowFullScreen)
 		self.exec_()
 	def mousePressEvent(self, event):
