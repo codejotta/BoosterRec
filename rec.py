@@ -1,8 +1,8 @@
 import sys
 from PySide2.QtWidgets import (QApplication, QMessageBox, QWidget, QPushButton, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QGridLayout, QFileDialog, QGroupBox, 
 								QSystemTrayIcon, QMenu, QCheckBox, QAction, QShortcut, QRubberBand, QDialog)
-from PySide2.QtGui import QIcon, QPixmap, QImage, QKeySequence, QCursor
-from PySide2.QtCore import Qt, QCoreApplication, QThread, QTimer, QObject, SIGNAL, QRect, QSize
+from PySide2.QtGui import QIcon, QPixmap, QImage, QKeySequence, QCursor, QPalette, QBrush
+from PySide2.QtCore import Qt, QCoreApplication, QThread, QTimer, QObject, SIGNAL, QRect, QSize, QPoint
 from pynput import keyboard
 from _thread import start_new_thread
 
@@ -31,7 +31,9 @@ class Window(QWidget):
 		boxImage.setLayout(boxLayout)
 
 		optionsGroup = QGroupBox("Opções")
-		self.area_total = QCheckBox("Capturar a tela inteira (1368x766)", checked=1)
+		screen_width = QApplication.primaryScreen().grabWindow(0).size().width()
+		screen_height = QApplication.primaryScreen().grabWindow(0).size().height()
+		self.area_total = QCheckBox("Capturar a tela inteira (%sx%s)"%(screen_width, screen_height), checked=1)
 		self.area_total.clicked.connect(self.total_area_function)
 		self.specific_area = QCheckBox("Capturar área específica", checked=0)
 		self.specific_area.clicked.connect(self.specific_area_function)
@@ -117,29 +119,41 @@ class Window(QWidget):
 			height = width
 			self.screenFrame.setPixmap(self.image.scaled(width,height,Qt.KeepAspectRatio, Qt.SmoothTransformation))
 		elif self.specific_area.isChecked() == True:
-			a = self.image
-			FullScreenImage(a)
+			img = self.image
+			a = FullScreenImage(img)
+
 
 class FullScreenImage(QDialog):
 	def __init__(self, image, parent=None):
 		super(FullScreenImage, self).__init__(parent)
+
 		self.image = image
 		self.img = QLabel(self)
-		self.img.setPixmap(self.image.scaled(self.image.size().width(),self.image.size().height(),Qt.KeepAspectRatio,Qt.SmoothTransformation))
+		self.img.setPixmap(self.image)
+
+		colorRubber = QPalette()
+		colorRubber.setBrush(QPalette.Highlight, Qt.gray)
+		transparent = QRubberBand(QRubberBand.Rectangle, self)
+		transparent.setGeometry(QRect(QPoint(0,0), QSize(self.image.size().width(),self.image.size().height())))
+		transparent.setPalette(colorRubber)
+		transparent.show()
+
 		self.setWindowState(Qt.WindowFullScreen)
 		self.exec_()
 	def mousePressEvent(self, event):
-		self.originQPoint = event.pos()
-		self.currentQRubberBand = QRubberBand(QRubberBand.Rectangle, self)
-		self.currentQRubberBand.setGeometry(QRect(self.originQPoint, QSize()))
+		self.origin_cursor = event.pos()
+		self.currentQRubberBand = QLabel(self)
+		self.currentQRubberBand.setGeometry(QRect(self.origin_cursor, QSize()))
 		self.currentQRubberBand.show()
 	def mouseMoveEvent(self, event):
-		self.currentQRubberBand.setGeometry(QRect(self.originQPoint, event.pos()).normalized())
+		self.currentQRubberBand.setGeometry(QRect(self.origin_cursor, event.pos()).normalized())
+		self.currentQRubberBand.setPixmap(self.image.copy(self.currentQRubberBand.geometry()))
 	def mouseReleaseEvent(self, event):
 		self.currentQRubberBand.hide()
 		currentQRect = self.currentQRubberBand.geometry()
 		self.currentQRubberBand.deleteLater()
 		image_final = self.image.copy(currentQRect)
+		win.image = image_final
 		win.screenFrame.setPixmap(image_final.scaled(400,400,Qt.KeepAspectRatio,Qt.SmoothTransformation))
 		self.hide()
 
